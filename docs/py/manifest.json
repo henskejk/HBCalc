@@ -1,0 +1,16 @@
+{
+ "files": [
+  "brewcalc/__init__.py",
+  "brewcalc/calcs.py",
+  "brewcalc/db.py",
+  "brewcalc/recipe.py",
+  "brewcalc/reference.py",
+  "brewcalc/service.py",
+  "data/grains.csv",
+  "data/hops_comprehensive.csv",
+  "data/yeasts_brewunited.csv",
+  "data/styles.csv",
+  "data/srm_colors.csv",
+  "data/example_recipe.json"
+ ]
+}

@@ -120,7 +120,11 @@ export default function App() {
     }
   }, [recipe, recipeId, savedJson]);
 
-  if (boot.status === "loading") return <div className="splash">Loading…</div>;
+  if (boot.status === "loading") {
+    // eslint-disable-next-line no-undef
+    const hosted = typeof __STATIC__ !== "undefined" && __STATIC__;
+    return <div className="splash">{hosted ? "Starting the calculator… the first visit downloads about 10 MB, then it is cached." : "Loading…"}</div>;
+  }
   if (boot.status === "failed") {
     return (
       <div className="splash">

@@ -33,6 +33,20 @@ conda install -n brewing_calculator -c conda-forge starlette uvicorn
 then double-click `run_react.command` (or run `./run_react.command`) and open http://localhost:8000.
 Add `--lan` to reach it from a phone. Details in `web/README.md`.
 
+### Hosted version (GitHub Pages)
+
+`docs/` is a static build of the React app that runs the same Python (`brewcalc/`) inside the browser using
+[Pyodide](https://pyodide.org), so it needs no server. Saved recipes and brew logs are kept in that browser's own
+storage (they stay on that device; use Download recipe to move one). Rebuild it after any change to the code or
+reference data, then commit `docs/`:
+
+```bash
+cd web && npm run build:static
+```
+
+To publish: repository Settings → Pages → Deploy from a branch → `main` / `/docs`. To try it locally:
+`cd docs && python3 -m http.server 8001`, then open http://localhost:8001.
+
 ### From your phone on brew day
 
 By default only this Mac can open the app. To reach it from a phone on the
@@ -54,6 +68,8 @@ while it's running this way.
 | `views/` | The pages: Calculator, Brew Day, Ingredients |
 | `api.py` | JSON server for the React version (a thin layer over `brewcalc/`) |
 | `web/` | The React version: source in `web/src/`, built app in `web/dist/` |
+| `docs/` | Static build of the React app for GitHub Pages (Python runs in the browser) |
+| `brewcalc/service.py` | What each API request does, with no web framework (shared by `api.py` and the hosted version) |
 | `run_react.command` | Starts the React version |
 | `brewcalc/calcs.py` | All brewing formulas (no UI code) |
 | `brewcalc/recipe.py` | Recipe format and conversion to calculator inputs |

@@ -346,7 +346,7 @@ def test_fruit_ppg_is_calculated_from_brix():
 def test_recipe_has_free_text_additions_that_do_not_change_the_numbers():
     from brewcalc import recipe as rcp
 
-    base = rcp.normalize(json.loads(open("data/example_recipe.json").read()))
+    base = rcp.normalize(json.loads(Path("data/example_recipe.json").read_text()))
     assert base["additions"] == []
     with_add = {**base, "additions": [{"name": "Whirlfloc", "amount": "1", "unit": "tablet", "notes": "last 10 min"}]}
     a, b = rcp.calculate(base), rcp.calculate(rcp.normalize(with_add))

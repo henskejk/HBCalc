@@ -13,9 +13,6 @@ besides uvicorn.
 
 from __future__ import annotations
 
-import json
-import math
-from dataclasses import asdict
 from pathlib import Path
 
 from starlette.applications import Starlette
@@ -25,33 +22,29 @@ from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from brewcalc import calcs, db
+from brewcalc import calcs, db, reference
 from brewcalc import recipe as rcp
-from brewcalc import reference
+from brewcalc.service import (  # noqa: F401  (shared with the browser version)
+    analyze,
+    brew_day,
+    clean,
+    num,
+    style_dict,
+    style_target,
+    yeast_label,
+)
 
 ROOT = Path(__file__).resolve().parent
 DIST = ROOT / "web" / "dist"
 EXAMPLE_PATH = ROOT / "data" / "example_recipe.json"
 DB_PATH = db.DEFAULT_DB  # tests point this at a temporary file
 
-# Order hops go in on brew day: first wort, boil (longest first), then after the boil.
-_HOP_ORDER = {"first wort": 0, "boil": 1, "flameout": 2, "whirlpool": 3, "dry hop": 4}
+
 
 
 # --------------------------------------------------------------------------
 # Helpers
 # --------------------------------------------------------------------------
-
-
-def clean(obj):
-    """Make a value safe for JSON: NaN and infinity become null."""
-    if isinstance(obj, float):
-        return obj if math.isfinite(obj) else None
-    if isinstance(obj, dict):
-        return {k: clean(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [clean(v) for v in obj]
-    return obj
 
 
 def reply(data, status: int = 200) -> JSONResponse:
@@ -70,34 +63,6 @@ async def body(request: Request) -> dict:
     if not isinstance(data, dict):
         raise HTTPException(400, "Expected a JSON object")
     return data
-
-
-def yeast_label(y: dict) -> str:
-    """Yeast name plus manufacturer and code, e.g. "London Ale (White Labs WLP013)".
-    Anything the name already says (like a code in a label) is left out."""
-    parts = [t for t in (y["lab"], y["code"]) if t and t not in y["name"]]
-    return f"{y['name']} ({' '.join(parts)})" if parts else y["name"]
-
-
-def style_dict(s: calcs.StyleRange, detail: bool = False) -> dict:
-    out = {"name": s.name, "abv": s.abv, "ibu": s.ibu, "og": s.og, "fg": s.fg, "srm": s.srm}
-    if detail:  # the BJCP text sections, only sent for the style in use
-        out["info"] = s.info
-    return out
-
-
-def style_target(style: calcs.StyleRange, base: calcs.StyleRange | None) -> dict:
-    """The style to compare against. A style with no ranges of its own (Fruit Beer, Smoked Beer...) borrows
-    the ranges of the chosen base beer style."""
-    out = style_dict(style, detail=True)
-    out["needs_base"] = all(getattr(style, k) is None for k in ("abv", "ibu", "og", "fg", "srm"))
-    if out["needs_base"] and base:
-        out.update({k: getattr(base, k) for k in ("abv", "ibu", "og", "fg", "srm")}, base=base.name)
-    return out
-
-
-def num(value, default=0.0) -> float:
-    return default if value is None else float(value)
 
 
 # --------------------------------------------------------------------------
@@ -140,77 +105,6 @@ async def normalize(request: Request) -> JSONResponse:
 # --------------------------------------------------------------------------
 # Calculating
 # --------------------------------------------------------------------------
-
-
-def analyze(recipe: dict) -> dict:
-    """Everything the calculator page shows for a recipe."""
-    recipe = rcp.normalize(recipe)
-    grain_ref, hop_ref = reference.grains(), reference.hops()
-    grains, hops, batch, mash = rcp.to_inputs(recipe)
-    res = calcs.calculate(grains, hops, batch, mash)
-
-    # One row per grain and hop line the recipe has, in the same order (None for unknown grains and
-    # for hop lines without a name), so the page can show them next to the editable cells.
-    total = res.total_grain_lbs or 1
-    scale = batch.efficiency_pct / 100 * batch.pre_boil_gal / batch.post_boil_gal if batch.post_boil_gal else 0
-    grain_rows = []
-    for g in recipe["grains"]:
-        ref = grain_ref.get(g.get("name"))
-        if not ref:
-            grain_rows.append(None)
-            continue
-        lbs = num(g.get("lbs"))
-        grain_rows.append(
-            {
-                "lovibond": ref["lovibond"],
-                "ppg": ref["ppg"],
-                "pct": lbs / total * 100,
-                "og_points": ref["ppg"] * lbs / batch.pre_boil_gal * scale if batch.pre_boil_gal else 0.0,
-                "mcu": lbs * ref["lovibond"] / batch.post_boil_gal if batch.post_boil_gal else 0.0,
-            }
-        )
-
-    hop_iter = iter(zip(hops, res.hop_ibus, strict=True))
-    hop_rows = []
-    for h in recipe["hops"]:
-        if not h.get("name"):
-            hop_rows.append(None)
-            continue
-        hop, ibu = next(hop_iter)
-        util = calcs.hop_utilization(hop, grains, batch)
-        hop_rows.append({"alpha_acid": hop.alpha_acid, "utilization": util, "ibu": ibu})
-
-    decoction = calcs.decoction_schedule(res.total_grain_lbs, mash, recipe["decoction_steps"], batch.pre_boil_gal)
-    style = reference.find_style(recipe["style"])
-    mash_water_qt = res.infusions[-1].total_mash_water_qt if res.infusions else res.strike_water_qt
-    return {
-        "og": res.og,
-        "fg": res.fg,
-        "abv": res.abv,
-        "abv_alternate": res.abv_alternate,
-        "ibu": res.ibu,
-        "srm": res.srm,
-        "srm_hex": calcs.srm_to_hex(res.srm),
-        "srm_color_name": calcs.srm_color_name(res.srm, reference.srm_colors()),
-        "pre_boil_gravity": res.pre_boil_gravity,
-        "attenuation_pct": batch.attenuation_pct,
-        "total_grain_lbs": res.total_grain_lbs,
-        "max_points_per_gal": res.max_points_per_gal,
-        "strike_water_qt": res.strike_water_qt,
-        "strike_water_temp_f": res.strike_water_temp_f,
-        "infusions": [asdict(s) for s in res.infusions],
-        "sparge_water_gal": res.sparge_water_gal,
-        "mash_water_gal": mash_water_qt / 4,
-        "absorbed_gal": res.total_grain_lbs * mash.grain_absorption_gal_per_lb,
-        "decoction": asdict(decoction) if decoction else None,
-        "style_target": style_target(style, reference.find_style(recipe["base_style"])) if style else None,
-        "grain_rows": grain_rows,
-        "hop_rows": hop_rows,
-        "unknown_grains": [g["name"] for g in recipe["grains"] if g.get("name") and g["name"] not in grain_ref],
-        "missing_hops": [
-            h["name"] for h in recipe["hops"] if h.get("name") and h["name"] not in hop_ref and h.get("alpha_acid") is None
-        ],
-    }
 
 
 async def calculate(request: Request) -> JSONResponse:
@@ -284,56 +178,6 @@ async def update_log(request: Request) -> JSONResponse:
 async def delete_log(request: Request) -> JSONResponse:
     db.delete_log(int(request.path_params["id"]), DB_PATH)
     return reply({"ok": True})
-
-
-def brew_day(recipe: dict, data: dict) -> dict:
-    """The brew plan for a recipe, and how a log's measurements compare with it."""
-    recipe = rcp.normalize(recipe)
-    plan = rcp.calculate(recipe)
-    grains, hops, batch, mash = rcp.to_inputs(recipe)
-
-    ordered = sorted(hops, key=lambda h: (_HOP_ORDER.get(h.use, 99), -h.minutes))
-    out = {
-        "recipe_name": recipe["name"],
-        "style": recipe["style"],
-        "plan": {
-            "strike_water_qt": plan.strike_water_qt,
-            "strike_water_temp_f": plan.strike_water_temp_f,
-            "mash_temp_f": mash.mash_temp_f,
-            "infusions": [asdict(s) for s in plan.infusions],
-            "sparge_water_gal": plan.sparge_water_gal,
-            "pre_boil_gal": batch.pre_boil_gal,
-            "pre_boil_gravity": plan.pre_boil_gravity,
-            "grains": [{"name": g.name, "lbs": g.lbs} for g in grains],
-            "hops": [{**asdict(h), "time_unit": calcs.HOP_TIME_UNIT.get(h.use, "min")} for h in ordered],
-            "additions": [a for a in recipe.get("additions", []) if any(str(a.get(k) or "").strip() for k in ("name", "amount", "unit", "notes"))],
-            "yeast": recipe["yeast"],
-            "attenuation_pct": batch.attenuation_pct,
-            "og": plan.og,
-            "fg": plan.fg,
-            "abv": plan.abv,
-            "efficiency_pct": batch.efficiency_pct,
-        },
-    }
-
-    pre_sg, pre_gal = data.get("pre_boil_sg"), data.get("pre_boil_gal")
-    og, fg = data.get("og"), data.get("fg")
-    actual: dict = {"efficiency": None, "og": None, "fg": None, "abv": None, "attenuation": None}
-    if pre_sg:
-        eff = calcs.actual_efficiency(pre_sg, grains, pre_gal or batch.pre_boil_gal)
-        actual["efficiency"] = {"value": eff, "delta": eff - batch.efficiency_pct}
-    if og:
-        actual["og"] = {"value": og, "delta_points": (og - plan.og) * 1000}
-    if fg:
-        actual["fg"] = {"value": fg, "delta_points": (fg - plan.fg) * 1000}
-    if og and fg:
-        abv = calcs.abv(og, fg)
-        actual["abv"] = {"value": abv, "delta": abv - plan.abv}
-        if og > 1:
-            att = (og - fg) / (og - 1) * 100
-            actual["attenuation"] = {"value": att, "delta": att - batch.attenuation_pct}
-    out["actual"] = actual
-    return out
 
 
 async def brew_day_endpoint(request: Request) -> JSONResponse:

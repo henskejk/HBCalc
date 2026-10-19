@@ -1,0 +1,83 @@
+{
+  "name": "American IPA (from spreadsheet)",
+  "style": "21A. American IPA",
+  "batch": {
+    "pre_boil_gal": 6.5,
+    "post_boil_gal": 5.5,
+    "boil_off_gal": 0.5,
+    "trub_loss_gal": 0.5,
+    "efficiency_pct": 65.0
+  },
+  "yeast": "San Diego Super Yeast",
+  "attenuation_pct": null,
+  "grains": [
+    {
+      "name": "Brewers Malt, Briess",
+      "lbs": 12.0
+    },
+    {
+      "name": "Caramel Malt 20L, Briess",
+      "lbs": 0.5
+    },
+    {
+      "name": "Château Biscuit, Castle Malting",
+      "lbs": 1.0
+    }
+  ],
+  "hops": [
+    {
+      "name": "Citra",
+      "oz": 1.0,
+      "form": "pellet",
+      "minutes": 20.0,
+      "use": "first wort",
+      "alpha_acid": null,
+      "notes": "FWH perceived bitterness"
+    },
+    {
+      "name": "Citra",
+      "oz": 1.0,
+      "form": "pellet",
+      "minutes": 40.0,
+      "use": "boil",
+      "alpha_acid": null,
+      "notes": ""
+    },
+    {
+      "name": "Citra",
+      "oz": 1.0,
+      "form": "pellet",
+      "minutes": 5.0,
+      "use": "boil",
+      "alpha_acid": null,
+      "notes": ""
+    },
+    {
+      "name": "Citra",
+      "oz": 1.0,
+      "form": "pellet",
+      "minutes": 0.0,
+      "use": "flameout",
+      "alpha_acid": null,
+      "notes": "flameout"
+    },
+    {
+      "name": "Citra",
+      "oz": 2.0,
+      "form": "pellet",
+      "minutes": 0.0,
+      "use": "dry hop",
+      "alpha_acid": null,
+      "notes": "dry hop 4 days"
+    }
+  ],
+  "mash": {
+    "thickness_qt_per_lb": 1.25,
+    "grain_temp_f": 68.0,
+    "mash_temp_f": 152.0,
+    "step_temps_f": [
+      170.0
+    ]
+  },
+  "notes": ""
+}
