@@ -1,0 +1,12 @@
+name: brewing_calculator
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - streamlit
+  - starlette        # the React version's server (api.py)
+  - uvicorn          # runs api.py
+  - pandas
+  - openpyxl         # only used by scripts/import_workbook.py
+  - pytest
+  - ruff

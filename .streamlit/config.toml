@@ -1,0 +1,16 @@
+[server]
+# Only this Mac can open the app. To use it from your phone on home Wi-Fi,
+# start it with:  streamlit run app.py --server.address 0.0.0.0
+address = "localhost"
+port = 8501
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+primaryColor = "#C8761A"
+
+[client]
+# Hides the "Deploy" button (Streamlit Community Cloud).
+toolbarMode = "minimal"

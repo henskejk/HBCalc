@@ -1,0 +1,24 @@
+# your saved recipes and logs (personal)
+brewing.db
+brewing.db.bak*
+
+# caches and tooling
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.claude/
+.DS_Store
+web/node_modules/
+
+# reference data the app does not load (kept locally only)
+data/HopsReference_BF.csv
+data/hops.csv
+data/yeasts.csv
+data/BJCP_Guidelines_2015.csv
+data/grains_maltsters_draft.csv
+data/sources/
+
+# working notes and one-off import scripts for the files above
+HANDOFF.md
+scripts/import_workbook.py
+scripts/import_hga_hops.py

@@ -1,0 +1,9 @@
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+# Local time is intended; this app runs on one machine.
+extend-ignore = ["DTZ", "SIM905"]
