@@ -18,6 +18,9 @@ for _hop in EXAMPLE["hops"]:
 # The spreadsheet had 1 gal between pre-boil and the end of the boil and no trub allowance. Pin that too
 # (the example file now splits it into 0.5 boil-off + 0.5 trub, which moves OG, IBU and color).
 EXAMPLE["batch"].update(boil_off_gal=1.0, trub_loss_gal=0.0)
+# The spreadsheet had 12 lb of base malt; the example file now has 14. Pin 12 so the spreadsheet values still apply.
+assert EXAMPLE["grains"][0]["name"] == "Brewers Malt, Briess"
+EXAMPLE["grains"][0]["lbs"] = 12.0
 
 
 @pytest.fixture(autouse=True)

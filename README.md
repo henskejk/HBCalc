@@ -45,7 +45,7 @@ cd web && npm run build:static
 ```
 
 To publish: repository Settings → Pages → Deploy from a branch → `main` / `/docs`. To try it locally:
-`cd docs && python3 -m http.server 8001`, then open http://localhost:8001.
+`cd docs && python -m http.server 8001` (with the conda environment active), then open http://localhost:8001.
 
 ### From your phone on brew day
 
