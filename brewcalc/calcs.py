@@ -392,3 +392,55 @@ def calculate(grains: list[Grain], hops: list[Hop], batch: Batch, mash: Mash) ->
         infusions=infusion_steps(lbs, mash),
         sparge_water_gal=sparge_water_gal(lbs, batch.pre_boil_gal, mash),
     )
+
+
+# --------------------------------------------------------------------------
+# Carbonation
+# --------------------------------------------------------------------------
+
+# One "volume" of CO2 is a litre of CO2 gas (at 0 C, 1 atm) dissolved per litre of beer.
+CO2_G_PER_L_PER_VOLUME = 1.977
+LITRES_PER_GAL = 3.785411784
+
+# Grams of CO2 made per gram of priming sugar, from the chemistry: 1 glucose -> 2 CO2, 1 sucrose -> 4 CO2.
+# Corn sugar is dextrose monohydrate (180.16 / 198.17 = 90.9% glucose). BYO's priming chart (volumes per ounce in
+# 5 gal) agrees with these three to two decimals. Malt extract is not from a source: it assumes 95% solids of
+# which 75% ferment (as maltose, 4 CO2 per 342 g), so treat it as approximate.
+PRIMING_SUGARS = {
+    "Corn sugar (dextrose monohydrate)": 2 * 44.01 / 198.17,
+    "Table sugar (sucrose)": 4 * 44.01 / 342.30,
+    "Dextrose (anhydrous)": 2 * 44.01 / 180.16,
+    "Dried malt extract (approximate)": 0.95 * 0.75 * 4 * 44.01 / 342.30,
+}
+DEFAULT_PRIMING_SUGAR = "Corn sugar (dextrose monohydrate)"
+
+# Usual carbonation ranges in volumes of CO2 (BYO's carbonation chart).
+CARBONATION_STYLES = [
+    ("British ales", 1.5, 2.2),
+    ("American ales", 2.2, 3.0),
+    ("European lagers", 2.4, 2.6),
+    ("American lagers", 2.5, 2.8),
+    ("Belgian ales", 2.0, 4.5),
+    ("German wheat beers (Weizen)", 2.8, 5.1),
+]
+
+
+def residual_co2_volumes(beer_temp_f: float) -> float:
+    """CO2 already dissolved in finished beer, from the warmest temperature it has been at since fermenting."""
+    return max(0.0, 3.0378 - 0.050062 * beer_temp_f + 0.00026555 * beer_temp_f**2)
+
+
+def priming_sugar_g(volume_gal: float, beer_temp_f: float, target_volumes: float, sugar: str = DEFAULT_PRIMING_SUGAR) -> float:
+    """Grams of priming sugar to bottle `volume_gal` of beer up to `target_volumes` of CO2."""
+    needed = max(0.0, target_volumes - residual_co2_volumes(beer_temp_f))
+    co2_g = needed * volume_gal * LITRES_PER_GAL * CO2_G_PER_L_PER_VOLUME
+    return co2_g / PRIMING_SUGARS[sugar]
+
+
+def keg_psi(beer_temp_f: float, target_volumes: float) -> float:
+    """Regulator (gauge) pressure at which beer at `beer_temp_f` settles at `target_volumes` of CO2.
+
+    Solves V = (P + 14.695) * (0.01821 + 0.09011 * exp(-(T - 32) / 43.11)) - 0.003342 for P
+    (the CO2 solubility equation in Wetnewf's "CO2 Volumes" article, as used by brew_tools)."""
+    solubility = 0.01821 + 0.09011 * math.exp(-(beer_temp_f - 32) / 43.11)
+    return max(0.0, (target_volumes + 0.003342) / solubility - 14.695)

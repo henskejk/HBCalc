@@ -43,6 +43,14 @@ DEFAULT_RECIPE: dict = {
         {"name": "Saccharification", "temp_f": 152.0, "minutes": 60.0},
         {"name": "Mash out", "temp_f": 170.0, "minutes": 10.0},
     ],
+    # Carbonation settings (imperial, like everything stored). volume_gal None means "the batch volume".
+    "carbonation": {
+        "volumes": 2.4,
+        "beer_temp_f": 68.0,
+        "sugar": calcs.DEFAULT_PRIMING_SUGAR,
+        "volume_gal": None,
+        "keg_temp_f": 38.0,
+    },
     "notes": "",
 }
 

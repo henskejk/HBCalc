@@ -58,6 +58,24 @@ def num(value, default=0.0) -> float:
     return default if value is None else float(value)
 
 
+def carbonation_summary(recipe: dict, batch_gal: float) -> dict:
+    """Priming sugar for bottling and regulator pressure for kegging, from the recipe's carbonation settings."""
+    c = recipe.get("carbonation") or {}
+    volumes = num(c.get("volumes"), 2.4)
+    sugar = c.get("sugar") if c.get("sugar") in calcs.PRIMING_SUGARS else calcs.DEFAULT_PRIMING_SUGAR
+    beer_temp = num(c.get("beer_temp_f"), 68.0)
+    gal = num(c.get("volume_gal"), 0.0) or batch_gal
+    residual = calcs.residual_co2_volumes(beer_temp)
+    keg_temp = num(c.get("keg_temp_f"), 38.0)
+    return {
+        "volume_gal": gal,
+        "residual_volumes": residual,
+        "needed_volumes": max(0.0, volumes - residual),
+        "sugar_g": calcs.priming_sugar_g(gal, beer_temp, volumes, sugar),
+        "keg_psi": calcs.keg_psi(keg_temp, volumes),
+    }
+
+
 def analyze(recipe: dict) -> dict:
     """Everything the calculator page shows for a recipe."""
     recipe = rcp.normalize(recipe)
@@ -99,7 +117,9 @@ def analyze(recipe: dict) -> dict:
     decoction = calcs.decoction_schedule(res.total_grain_lbs, mash, recipe["decoction_steps"], batch.pre_boil_gal)
     style = reference.find_style(recipe["style"])
     mash_water_qt = res.infusions[-1].total_mash_water_qt if res.infusions else res.strike_water_qt
+    carbonation = carbonation_summary(recipe, num(recipe["batch"].get("post_boil_gal")))  # the target (packaged) volume, not the wort at end of boil
     return {
+        "carbonation": carbonation,
         "og": res.og,
         "fg": res.fg,
         "abv": res.abv,
@@ -193,6 +213,10 @@ def reference_payload() -> dict:
         "hop_forms": list(calcs.HOP_FORM_FACTOR),
         "hop_uses": calcs.HOP_USES,
         "hop_time_units": calcs.HOP_TIME_UNIT,
+        "carbonation": {
+            "sugars": list(calcs.PRIMING_SUGARS),
+            "styles": [{"name": n, "low": lo, "high": hi} for n, lo, hi in calcs.CARBONATION_STYLES],
+        },
     }
 
 

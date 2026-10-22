@@ -22,13 +22,14 @@ from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from brewcalc import calcs, db, reference
+from brewcalc import db, reference
 from brewcalc import recipe as rcp
 from brewcalc.service import (  # noqa: F401  (shared with the browser version)
     analyze,
     brew_day,
     clean,
     num,
+    reference_payload,
     style_dict,
     style_target,
     yeast_label,
@@ -71,17 +72,7 @@ async def body(request: Request) -> dict:
 
 
 async def get_reference(request: Request) -> JSONResponse:
-    return reply(
-        {
-            "grains": list(reference.grains().values()),
-            "hops": list(reference.hops().values()),
-            "yeasts": [{**y, "display": yeast_label(y)} for y in reference.yeasts().values()],
-            "styles": [style_dict(s) for s in reference.styles().values()],
-            "hop_forms": list(calcs.HOP_FORM_FACTOR),
-            "hop_uses": calcs.HOP_USES,
-            "hop_time_units": calcs.HOP_TIME_UNIT,
-        }
-    )
+    return reply(reference_payload())
 
 
 async def reload_reference(request: Request) -> JSONResponse:

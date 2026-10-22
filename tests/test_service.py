@@ -64,3 +64,19 @@ def test_logs_and_brew_day(db_path):
     assert call(db_path, "PUT", f"/api/logs/{made['id']}", {"brew_date": "2026-10-20", "data": {}})[0] == 200
     assert call(db_path, "DELETE", f"/api/logs/{made['id']}")[0] == 200
     assert call(db_path, "GET", f"/api/logs/{made['id']}")[0] == 404
+
+
+def test_calculate_includes_carbonation_and_reference_lists_the_options(db_path):
+    _, ref = call(db_path, "GET", "/api/reference")
+    assert "Table sugar (sucrose)" in ref["carbonation"]["sugars"] and ref["carbonation"]["styles"][0]["name"] == "British ales"
+    _, d = call(db_path, "GET", "/api/defaults")
+    assert d["default"]["carbonation"]["volumes"] == 2.4
+    _, res = call(db_path, "POST", "/api/calculate", d["example"])
+    c = res["carbonation"]
+    assert c["volume_gal"] == d["example"]["batch"]["post_boil_gal"] and c["sugar_g"] > 0 and 8 < c["keg_psi"] < 20
+    # An explicit volume and a different sugar change the answer; a bad sugar name falls back to corn sugar.
+    mine = {**d["example"], "carbonation": {**d["example"]["carbonation"], "volume_gal": 10, "sugar": "Table sugar (sucrose)"}}
+    c2 = call(db_path, "POST", "/api/calculate", mine)[1]["carbonation"]
+    assert c2["volume_gal"] == 10 and c2["sugar_g"] > c["sugar_g"] * 1.5
+    bad = {**d["example"], "carbonation": {**d["example"]["carbonation"], "sugar": "Mystery"}}
+    assert call(db_path, "POST", "/api/calculate", bad)[1]["carbonation"]["sugar_g"] == pytest.approx(c["sugar_g"])

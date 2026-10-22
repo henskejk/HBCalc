@@ -283,6 +283,13 @@ table.grid.hops .w-calc { width: 5.5rem; }
 /* Basic / Decoction switch beside the Mash heading */
 .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin: 2rem 0 0.75rem; }
 .section-head h2 { margin: 0; }
+.carb-grid { margin-top: 0.5rem; }
+.carb-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 0 1rem 1rem; }
+.carb-card h3 { margin: 1rem 0 0.75rem; }
+.carb-result { margin-top: 0.75rem; padding: 0.6rem 0.8rem; background: var(--field); border-radius: var(--radius); }
+.carb-result-label { display: block; font-size: 0.85rem; color: var(--muted); }
+.carb-result-value { display: block; font-size: 1.6rem; font-weight: 700; line-height: 1.3; }
+.carb-result .caption { margin: 0.3rem 0 0; }
 .unit-toggle { display: flex; flex-direction: column; gap: 0.35rem; }
 .unit-toggle .seg { align-self: flex-start; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: #fff; }

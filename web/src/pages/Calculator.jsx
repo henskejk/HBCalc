@@ -107,6 +107,8 @@ export default function Calculator({ recipe, setRecipe, reference, onSave, unsav
       <Field label="Recipe notes">
         <textarea className="input" rows={4} value={recipe.notes} onChange={(e) => set({ notes: e.target.value })} />
       </Field>
+
+      <Carbonation recipe={recipe} set={set} reference={reference} result={result} />
     </>
   );
 }
@@ -344,6 +346,124 @@ function GrainBill({ recipe, set, options, result }) {
       {result?.unknown_grains.length > 0 && (
         <Banner kind="warning">Not in the grain reference, so left out: {result.unknown_grains.join(", ")}</Banner>
       )}
+    </section>
+  );
+}
+
+// --------------------------------------------------------------------------
+// Carbonation (the maths is on the server; the settings are saved with the recipe)
+// --------------------------------------------------------------------------
+
+const OZ_G = 28.349523125;
+
+function Carbonation({ recipe, set, reference, result }) {
+  const u = useUnits();
+  const c = recipe.carbonation ?? {};
+  const edit = (patch) => set({ carbonation: { ...c, ...patch } });
+  const info = reference.carbonation ?? { sugars: [], styles: [] };
+  const volumes = c.volumes ?? 2.4;
+  const mid = (s) => Math.round(((s.low + s.high) / 2) * 10) / 10;
+  const preset = info.styles.find((s) => Math.abs(mid(s) - volumes) < 1e-9)?.name ?? "";
+  const r = result?.carbonation;
+  const sugarText = r
+    ? u.metric
+      ? `${fixed(r.sugar_g, 0)} g`
+      : `${fixed(r.sugar_g / OZ_G, 1)} oz (${fixed(r.sugar_g, 0)} g)`
+    : "–";
+  const psi = r?.keg_psi;
+  const pressureText = r
+    ? u.metric
+      ? `${fixed(psi * 0.0689476, 2)} bar (${fixed(psi * 6.89476, 0)} kPa)`
+      : `${fixed(psi, 1)} psi`
+    : "–";
+  return (
+    <section>
+      <h2>
+        Carbonation
+        <Help text="Pick a target level, then use the bottle conditioning or keg calculator below. Settings are saved with the recipe." />
+      </h2>
+      <div className="row two">
+        <Field label="Style guide" help="Usual carbonation ranges by beer style (BYO). Choosing one sets the target to the middle of its range; you can type any value.">
+          <select
+            className="input"
+            value={preset}
+            onChange={(e) => {
+              const s = info.styles.find((x) => x.name === e.target.value);
+              if (s) edit({ volumes: mid(s) });
+            }}
+          >
+            <option value="">Custom</option>
+            {info.styles.map((s) => (
+              <option key={s.name} value={s.name}>
+                {s.name} ({s.low}–{s.high} volumes)
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Target CO2 (volumes)" help="Volumes of CO2 per volume of beer. About 2.4 is typical for ales.">
+          <NumInput stepper step={0.1} min={0} max={5.5} decimals={1} value={c.volumes} onChange={(v) => edit({ volumes: v ?? 0 })} />
+        </Field>
+      </div>
+
+      <div className="row two carb-grid">
+        <div className="carb-card">
+          <h3>Bottle conditioning</h3>
+          <Field label={`Volume of beer being bottled (${u.label("gal")})`} help="Leave blank to use the target batch volume.">
+            <UnitNum
+              kind="gal"
+              stepper
+              step={0.25}
+              min={0}
+              decimals={2}
+              placeholder={recipe.batch ? u.show("gal", recipe.batch.post_boil_gal, 2).replace(/ \S+$/, "") : ""}
+              value={c.volume_gal ?? null}
+              onChange={(v) => edit({ volume_gal: v || null })}
+            />
+          </Field>
+          <Field
+            label={`Highest temperature of the beer since fermentation (${u.label("temp")})`}
+            help="Beer holds less CO2 the warmer it has been, so this sets how much is left after fermentation. Use the warmest the beer got after fermentation ended."
+          >
+            <UnitNum kind="temp" stepper step={1} min={32} max={100} value={c.beer_temp_f} onChange={(v) => edit({ beer_temp_f: v ?? 68 })} />
+          </Field>
+          <Field label="Priming sugar">
+            <select className="input" value={c.sugar ?? ""} onChange={(e) => edit({ sugar: e.target.value })}>
+              {info.sugars.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <div className="carb-result">
+            <span className="carb-result-label">Priming sugar</span>
+            <span className="carb-result-value">{sugarText}</span>
+            {r && (
+              <p className="caption">
+                The beer already holds about {fixed(r.residual_volumes, 2)} volumes of CO2 at this temperature, so the sugar adds{" "}
+                {fixed(r.needed_volumes, 2)} for {u.show("gal", r.volume_gal, 2)} of beer.
+                {r.needed_volumes === 0 && " The beer already holds at least the target, so no sugar is needed."}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="carb-card">
+          <h3>Keg (CO2 tank)</h3>
+          <Field label={`Beer temperature (${u.label("temp")})`} help="The temperature of the beer in the keg while it carbonates, usually your kegerator's setting.">
+            <UnitNum kind="temp" stepper step={1} min={28} max={80} value={c.keg_temp_f} onChange={(v) => edit({ keg_temp_f: v ?? 38 })} />
+          </Field>
+          <div className="carb-result">
+            <span className="carb-result-label">Set the regulator to</span>
+            <span className="carb-result-value">{pressureText}</span>
+            <p className="caption">
+              Gauge pressure for {fixed(volumes, 1)} volumes at this temperature. Leave the keg at this pressure and give it about a
+              week or two to reach the target. It is the pressure at which the beer holds that much CO2 once it settles; a higher
+              setting speeds it up but overshoots if left on.
+            </p>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }

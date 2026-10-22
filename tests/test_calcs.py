@@ -354,3 +354,37 @@ def test_recipe_has_free_text_additions_that_do_not_change_the_numbers():
     with_add = {**base, "additions": [{"name": "Whirlfloc", "amount": "1", "unit": "tablet", "notes": "last 10 min"}]}
     a, b = rcp.calculate(base), rcp.calculate(rcp.normalize(with_add))
     assert (a.og, a.srm, a.ibu) == (b.og, b.srm, b.ibu)
+
+
+# --- carbonation -------------------------------------------------------------
+
+
+def test_residual_co2_matches_the_byo_example():
+    # BYO's chart gives 0.850 volumes for beer held at 68 F.
+    assert calcs.residual_co2_volumes(68) == pytest.approx(0.85, abs=0.02)
+    assert calcs.residual_co2_volumes(50) > calcs.residual_co2_volumes(68) > calcs.residual_co2_volumes(75)
+
+
+def test_priming_sugar_agrees_with_the_byo_chart():
+    # BYO: 1 oz (28.3 g) of anhydrous glucose / glucose monohydrate / sucrose in 5 gal adds 0.37 / 0.34 / 0.39 volumes.
+    oz = 28.35
+    for sugar, volumes in [("Dextrose (anhydrous)", 0.37), ("Corn sugar (dextrose monohydrate)", 0.34), ("Table sugar (sucrose)", 0.39)]:
+        added = oz * calcs.PRIMING_SUGARS[sugar] / (5 * calcs.LITRES_PER_GAL * calcs.CO2_G_PER_L_PER_VOLUME)
+        assert added == pytest.approx(volumes, abs=0.006)
+
+
+def test_priming_sugar_for_a_5_gallon_batch():
+    # BYO's worked example: 2.4 volumes at 68 F needs about 128 g of glucose monohydrate in 5 gal.
+    grams = calcs.priming_sugar_g(5, 68, 2.4)
+    assert 125 < grams < 135
+    assert calcs.priming_sugar_g(5, 68, 2.4, "Table sugar (sucrose)") < grams
+    assert calcs.priming_sugar_g(5, 68, 0.5) == 0.0  # already has more CO2 than that from fermentation
+    assert calcs.priming_sugar_g(10, 68, 2.4) == pytest.approx(2 * grams)
+
+
+def test_keg_pressure():
+    # The usual force-carbonation chart: about 11-12 psi for 2.5 volumes at 38 F; more when warmer or fizzier.
+    assert calcs.keg_psi(38, 2.5) == pytest.approx(11.2, abs=0.4)
+    assert calcs.keg_psi(45, 2.5) > calcs.keg_psi(38, 2.5) > calcs.keg_psi(34, 2.5)
+    assert calcs.keg_psi(38, 3.0) > calcs.keg_psi(38, 2.5)
+    assert calcs.keg_psi(38, 0.1) == 0.0
